@@ -13,7 +13,7 @@
  *  https://your-app.deno.dev/<WEBHOOK_SECRET_TOKEN>
  */
 
-import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import "https://deno.land/x/dotenv/load.ts";
 
 
