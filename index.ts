@@ -10,7 +10,7 @@ const WEBHOOK_SECRET_TOKEN = Deno.env.get("WEBHOOK_SECRET_TOKEN");
 const PORT = Number(Deno.env.get("PORT") || 8000);
 const WEBHOOK_URL = Deno.env.get("WEBHOOK_URL");
 
-if (!BOT_TOKEN || !WEBHOOK_SECRET_TOKEN || !WEBHOOK_URL) {
+if (!BOT_TOKEN || !WEBHOOK_SECRET_TOKEN) {
   throw new Error("Missing env variables");
 }
 
