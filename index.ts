@@ -25,7 +25,7 @@ bot.command("start", (ctx) => ctx.reply("Bot is running 🔥"));
 const app = express();
 app.use(bodyParser.json());
 
-app.post("webhook", async (req, res) => {
+app.post(WEBHOOK_URL, async (req, res) => {
   if (req.headers["x-telegram-bot-api-secret-token"] !== WEBHOOK_SECRET_TOKEN) {
     return res.status(401).send("Unauthorized");
   }
@@ -40,7 +40,7 @@ app.post("webhook", async (req, res) => {
 });
 
 // Simple GET to confirm server is live
-app.get("/", (req, res) => {
+app.get(WEBHOOK_URL, (req, res) => {
   res.send("Webhook server is live 🚀");
 });
 
@@ -50,7 +50,7 @@ app.listen(PORT, async () => {
 
   // Set webhook (Telegram must be able to reach this URL)
   try {
-    await bot.api.setWebhook(`${WEBHOOK_URL}webhook`, {
+    await bot.api.setWebhook(WEBHOOK_URL, {
       secret_token: WEBHOOK_SECRET_TOKEN,
     });
     console.log("Webhook set successfully!");
