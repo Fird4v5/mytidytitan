@@ -1,90 +1,113 @@
-import "https://deno.land/x/dotenv/load.ts";
-import express from "npm:express";
-import bodyParser from "npm:body-parser";
-import { Bot } from "npm:grammy";
+/**
+ * bot.ts
+ * Telegram group cleanup bot for Deno Deploy.
+ *
+ * Behavior:
+ *  - Deletes ONLY join/added/left/removed service messages.
+ *  
+ * Environment Variables (Deno Deploy):
+ *  - BOT_TOKEN               = Telegram bot token
+ *  - WEBHOOK_SECRET_TOKEN    = secret webhook path segment
+ *
+ * Webhook URL example:
+ *  https://your-app.deno.dev/<WEBHOOK_SECRET_TOKEN>
+ */
 
-// Load env variables
+import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
+
 const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
-const WEBHOOK_SECRET_TOKEN = Deno.env.get("WEBHOOK_SECRET_TOKEN");
-const PORT = Number(Deno.env.get("PORT") || 8000);
+const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET_TOKEN");
 
-if (!BOT_TOKEN || !WEBHOOK_SECRET_TOKEN) {
-  throw new Error("Missing env vars BOT_TOKEN or WEBHOOK_SECRET_TOKEN");
+if (!BOT_TOKEN) {
+  console.error("BOT_TOKEN is missing in environment variables.");
 }
 
-// Initialize the bot
-const bot = new Bot(BOT_TOKEN);
+if (!WEBHOOK_SECRET) {
+  console.error("WEBHOOK_SECRET_TOKEN is missing in environment variables.");
+}
 
-// Handle join/leave messages
-bot.on("message:new_chat_members", (ctx) => ctx.deleteMessage().catch(() => {}));
-bot.on("message:left_chat_member", (ctx) => ctx.deleteMessage().catch(() => {}));
+const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-// Start command
-bot.command("start", (ctx) => ctx.reply("Bot is running 🔥"));
+// Telegram API wrapper
+async function telegramApi(method: string, body: unknown) {
+  const res = await fetch(`${TELEGRAM_API}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 
-// Express server
-const app = express();
-app.use(bodyParser.json());
-
-// Webhook endpoint
-app.post("/webhook", async (req, res) => {
-  if (req.headers["x-telegram-bot-api-secret-token"] !== WEBHOOK_SECRET_TOKEN) {
-    return res.status(401).send("Unauthorized");
+  if (!res.ok) {
+    console.error(`Telegram API error (${method}):`, await res.text());
   }
 
+  return res.json().catch(() => ({}));
+}
+
+// Delete service messages
+async function deleteMessage(chatId: number, messageId: number) {
   try {
-    await bot.handleUpdate(req.body);
-    res.status(200).send("OK");
-  } catch (err) {
-    console.error("Webhook error:", err);
-    res.status(500).send("Error");
-  }
-});
-
-// Simple GET to confirm server is live
-app.get("/", (_, res) => res.send("Server live 🚀"));
-
-// Temporary route to manually set webhook
-app.get("/set-webhook", async (_, res) => {
-  const DEPLOY_URL = Deno.env.get("DENO_DEPLOYMENT_URL");
-  if (!DEPLOY_URL) return res.send("DEPLOY_URL not available.");
-
-  const WEBHOOK_URL = `https://${DEPLOY_URL}/webhook`;
-
-  try {
-    await bot.api.deleteWebhook();
-    await bot.api.setWebhook(WEBHOOK_URL, { secret_token: WEBHOOK_SECRET_TOKEN });
-    res.send("Webhook set successfully: " + WEBHOOK_URL);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Failed to set webhook");
-  }
-});
-
-// Start server and set webhook only if DEPLOY_URL is available
-app.listen(PORT, async () => {
-  console.log(`Server listening on port ${PORT}`);
-
-  const DEPLOY_URL = Deno.env.get("DENO_DEPLOYMENT_URL");
-  if (!DEPLOY_URL) {
-    console.warn(
-      "DENO_DEPLOYMENT_URL not available yet. Webhook will need to be set manually via /set-webhook."
-    );
-    return;
-  }
-
-  const WEBHOOK_URL = `https://${DEPLOY_URL}/webhook`;
-
-  try {
-    // Remove old webhook if exists
-    await bot.api.deleteWebhook();
-    
-    // Set webhook with secret token
-    await bot.api.setWebhook(WEBHOOK_URL, {
-      secret_token: WEBHOOK_SECRET_TOKEN,
+    await telegramApi("deleteMessage", {
+      chat_id: chatId,
+      message_id: messageId,
     });
-    console.log("Webhook set successfully:", WEBHOOK_URL);
+    console.log(`Deleted service message ${messageId} from ${chatId}`);
   } catch (err) {
-    console.error("Failed to set webhook:", err);
+    console.error("deleteMessage error:", err);
   }
+}
+
+// Check if the Telegram message is a join/leave event
+function isJoinOrLeave(msg: any): boolean {
+  return (
+    msg.new_chat_members ||
+    msg.left_chat_member ||
+    msg.group_chat_created ||
+    msg.supergroup_chat_created ||
+    msg.migrate_to_chat_id ||
+    msg.migrate_from_chat_id
+  );
+}
+
+// Handle Telegram updates
+async function handleUpdate(update: any) {
+  if (!update.message) return;
+
+  const msg = update.message;
+  const chatId = msg.chat.id;
+  const messageId = msg.message_id;
+
+  // ONLY delete join/leave events
+  if (isJoinOrLeave(msg)) {
+    await deleteMessage(chatId, messageId);
+  }
+}
+
+// HTTP server for webhook
+serve(async (req) => {
+  const url = new URL(req.url);
+  const path = url.pathname.replace(/^\/+|\/+$/g, "");
+
+  // Secure webhook path
+  if (path !== WEBHOOK_SECRET) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  if (req.method !== "POST") {
+    return new Response("OK");
+  }
+
+  if (!BOT_TOKEN) {
+    return new Response("Server misconfigured (missing BOT_TOKEN)", { status: 500 });
+  }
+
+  let update;
+  try {
+    update = await req.json();
+  } catch {
+    return new Response("Bad JSON", { status: 400 });
+  }
+
+  handleUpdate(update).catch((e) => console.error("Update handler error:", e));
+
+  return new Response("OK");
 });
