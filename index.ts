@@ -14,6 +14,8 @@
  */
 
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
+import "https://deno.land/x/dotenv/load.ts";
+
 
 const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
 const WEBHOOK_SECRET = Deno.env.get("WEBHOOK_SECRET_TOKEN");
