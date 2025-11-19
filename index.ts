@@ -3,6 +3,8 @@
 
 import { Bot, Context } from "https://deno.land/x/grammy@v1.38.3/mod.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import "https://deno.land/x/dotenv/load.ts"; // automatically loads .env
+
 
 // Bot token from Deno Deploy env
 const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
