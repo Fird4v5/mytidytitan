@@ -1,8 +1,10 @@
 {
   "compilerOptions": {
-    "lib": ["deno.ns", "dom", "esnext"]
+    "lib": ["deno.ns", "dom", "esnext"],
+    "strict": true,
+    "moduleResolution": "nodenext"
   },
   "tasks": {
-    "start": "deno run --allow-net --allow-env index.ts"
+    "start": "deno run --allow-net --allow-env --unstable index.ts"
   }
 }

@@ -1,41 +1,60 @@
-/// <reference lib="deno.ns" />
-/// <reference lib="dom" />
-
-import { Bot, Context } from "https://deno.land/x/grammy@v1.38.3/mod.ts";
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+// index.ts
 import "https://deno.land/x/dotenv/load.ts";
+import express from "npm:express";
+import bodyParser from "npm:body-parser";
+import { Bot } from "npm:grammy";
 
+// Load env
 const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
 const WEBHOOK_SECRET_TOKEN = Deno.env.get("WEBHOOK_SECRET_TOKEN");
+const PORT = Number(Deno.env.get("PORT") || 8000);
 const WEBHOOK_URL = Deno.env.get("WEBHOOK_URL");
 
 if (!BOT_TOKEN || !WEBHOOK_SECRET_TOKEN || !WEBHOOK_URL) {
-  throw new Error("Missing required env variables");
+  throw new Error("Missing env variables");
 }
 
-const bot = new Bot<Context>(BOT_TOKEN);
+// Initialize bot
+const bot = new Bot(BOT_TOKEN);
 
 bot.on("message:new_chat_members", (ctx) => ctx.deleteMessage().catch(() => {}));
 bot.on("message:left_chat_member", (ctx) => ctx.deleteMessage().catch(() => {}));
 bot.command("start", (ctx) => ctx.reply("Bot is running 🔥"));
 
-// Deno Deploy serve
-serve(async (req: Request) => {
-  const url = new URL(req.url);
-  if (
-    req.method === "POST" &&
-    url.pathname === "/webhook" &&
-    req.headers.get("X-Telegram-Bot-Api-Secret-Token") === WEBHOOK_SECRET_TOKEN
-  ) {
-    try {
-      const update = await req.json();
-      await bot.handleUpdate(update);
-      return new Response("OK", { status: 200 });
-    } catch (err) {
-      console.error("Webhook Error:", err);
-      return new Response("Error processing update", { status: 500 });
-    }
+// Express setup
+const app = express();
+app.use(bodyParser.json());
+
+app.post("/webhook", async (req, res) => {
+  if (req.headers["x-telegram-bot-api-secret-token"] !== WEBHOOK_SECRET_TOKEN) {
+    return res.status(401).send("Unauthorized");
   }
 
-  return new Response("Webhook live", { status: 200 });
+  try {
+    await bot.handleUpdate(req.body);
+    res.status(200).send("OK");
+  } catch (err) {
+    console.error("Webhook error:", err);
+    res.status(500).send("Error");
+  }
+});
+
+// Simple GET to confirm server is live
+app.get("/", (req, res) => {
+  res.send("Webhook server is live 🚀");
+});
+
+// Start server
+app.listen(PORT, async () => {
+  console.log(`Server listening on port ${PORT}`);
+
+  // Set webhook (Telegram must be able to reach this URL)
+  try {
+    await bot.api.setWebhook(`${WEBHOOK_URL}/webhook`, {
+      secret_token: WEBHOOK_SECRET_TOKEN,
+    });
+    console.log("Webhook set successfully!");
+  } catch (err) {
+    console.error("Failed to set webhook:", err);
+  }
 });
