@@ -56,26 +56,25 @@ bot.command("start", (ctx: Context) => ctx.reply("Bot is running 🔥"));
 
 // === Deno Deploy webhook handler ===
 serve(async (req) => {
-  console.log("Request received:", req.method, req.url);
+  console.log("Incoming request:", req.method, req.url);
 
   if (req.method === "POST") {
     let body: unknown = null;
     try {
       body = await req.json();
     } catch {
-      console.log("POST request with invalid JSON:", await req.text());
+      console.log("Invalid JSON POST body");
     }
 
     if (body) {
-      try {
-        await bot.handleUpdate(body as unknown as Record<string, unknown>);
-      } catch (err: unknown) {
-        console.error("Error handling update:", formatErr(err));
-      }
+      await bot.handleUpdate(body as unknown as Record<string, unknown>);
     }
-    return new Response("ok");
+
+    // Telegram requires a 200 response
+    return new Response("ok", { status: 200 });
   }
 
-  // Catch-all GET or other requests (prevents 404)
-  return new Response("Webhook OK", { status: 200 });
+  // Catch-all for GET / or other methods (prevents 404)
+  return new Response("Hello! Webhook is live.", { status: 200 });
 });
+
