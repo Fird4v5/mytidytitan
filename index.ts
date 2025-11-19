@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 /// <reference lib="dom" />
 
-import { Bot, Context, GrammyError, HttpError } from "https://deno.land/x/grammy@v1.41.0/mod.ts";
+import { Bot, Context, GrammyError, HttpError } from "https://deno.land/x/grammy@v1.21.0/mod.ts";
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 
 // === Bot token from environment variable ===
