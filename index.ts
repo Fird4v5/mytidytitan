@@ -1,8 +1,8 @@
 /// <reference lib="deno.ns" />
 /// <reference lib="dom" />
 
-import { Bot, Context } from "https://deno.land/x/grammy@v1.21.1/mod.ts";
-import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
+import { Bot, Context } from "https://deno.land/x/grammy@v1.38.3/mod.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 // Bot token from Deno Deploy env
 const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
