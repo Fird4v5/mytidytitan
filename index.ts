@@ -1,4 +1,3 @@
-// index.ts
 import "https://deno.land/x/dotenv/load.ts";
 import express from "npm:express";
 import bodyParser from "npm:body-parser";
@@ -45,14 +44,31 @@ app.post("/webhook", async (req, res) => {
 // Simple GET to confirm server is live
 app.get("/", (_, res) => res.send("Server live 🚀"));
 
-// Start server and set webhook only **after deployment URL is available**
+// Temporary route to manually set webhook
+app.get("/set-webhook", async (_, res) => {
+  const DEPLOY_URL = Deno.env.get("DENO_DEPLOYMENT_URL");
+  if (!DEPLOY_URL) return res.send("DEPLOY_URL not available.");
+
+  const WEBHOOK_URL = `https://${DEPLOY_URL}/webhook`;
+
+  try {
+    await bot.api.deleteWebhook();
+    await bot.api.setWebhook(WEBHOOK_URL, { secret_token: WEBHOOK_SECRET_TOKEN });
+    res.send("Webhook set successfully: " + WEBHOOK_URL);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Failed to set webhook");
+  }
+});
+
+// Start server and set webhook only if DEPLOY_URL is available
 app.listen(PORT, async () => {
   console.log(`Server listening on port ${PORT}`);
 
   const DEPLOY_URL = Deno.env.get("DENO_DEPLOYMENT_URL");
   if (!DEPLOY_URL) {
     console.warn(
-      "DENO_DEPLOYMENT_URL not available yet. Webhook will need to be set manually after deployment."
+      "DENO_DEPLOYMENT_URL not available yet. Webhook will need to be set manually via /set-webhook."
     );
     return;
   }
