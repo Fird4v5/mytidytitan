@@ -25,7 +25,7 @@ bot.command("start", (ctx) => ctx.reply("Bot is running 🔥"));
 const app = express();
 app.use(bodyParser.json());
 
-app.post("/webhook", async (req, res) => {
+app.post("webhook", async (req, res) => {
   if (req.headers["x-telegram-bot-api-secret-token"] !== WEBHOOK_SECRET_TOKEN) {
     return res.status(401).send("Unauthorized");
   }
@@ -50,7 +50,7 @@ app.listen(PORT, async () => {
 
   // Set webhook (Telegram must be able to reach this URL)
   try {
-    await bot.api.setWebhook(`${WEBHOOK_URL}/webhook`, {
+    await bot.api.setWebhook(`${WEBHOOK_URL}webhook`, {
       secret_token: WEBHOOK_SECRET_TOKEN,
     });
     console.log("Webhook set successfully!");
